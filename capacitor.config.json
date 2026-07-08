@@ -1,9 +1,5 @@
 {
   "appId": "com.riya.scamproject",
   "appName": "Beacon",
-  "webDir": "static",
-  "server": {
-    "url": "https://spam-project-ylde.onrender.com/",
-    "cleartext": true
-  }
+  "webDir": "www"
 }

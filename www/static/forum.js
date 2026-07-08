@@ -53,6 +53,15 @@ function votingButtons() {
    });
 }
 
+function flagger() {
+   document.querySelectorAll('.flag').forEach(btn => {
+      btn.addEventListener('click', function () {
+         const postId = btn.dataset.postId;
+         openFlagModal(postId);
+      })
+   })
+}
+
 function ensureModal() {
    let overlay = document.getElementById('post-modal-overlay');
    if (overlay) return overlay;
@@ -113,6 +122,91 @@ function openModal(response) {
    document.getElementById('modal-date').textContent = response['time'];
    document.getElementById('modal-confidence').textContent = 'Confidence: ' + response['confidence'];
 
+   overlay.classList.add('open');
+}
+
+function ensureFlagModal() {
+   let overlay = document.getElementById('post-flag-modal-overlay');
+   if (overlay) return overlay;
+
+   overlay = document.createElement('div');
+   overlay.id = 'post-flag-modal-overlay';
+   overlay.className = 'modal-overlay';
+
+   const sheet = document.createElement('div');
+   sheet.className = 'flag-modal-sheet';
+
+   const closeBtn = document.createElement('button');
+   closeBtn.className = 'modal-close';
+   closeBtn.textContent = '✕';
+   closeBtn.addEventListener('click', () => overlay.classList.remove('open'));
+
+   const reason = document.createElement('textarea');
+   reason.id = 'flag-reason-input';
+   reason.placeholder = 'please state your reason for flagging the message';
+
+   const submit_reason = document.createElement('button');
+   submit_reason.className = 'submit_reason';
+   submit_reason.textContent = 'Submit';
+
+   // Listener attached here, at creation time — same moment the button
+   // itself is created. A later querySelectorAll('.submit_reason') in
+   // flagger() would always find nothing, since this button doesn't exist
+   // in the DOM until the first time someone clicks Flag.
+   submit_reason.addEventListener('click', async () => {
+      const postId = overlay.dataset.postId;
+      const reasonText = reason.value.trim();
+      if (!reasonText) {
+         alert('Please enter a reason before submitting.');
+         return;
+      }
+
+      submit_reason.disabled = true;
+      submit_reason.textContent = 'Submitting...';
+
+      const postRef = doc(db, 'reports', postId);
+      try {
+         await updateDoc(postRef, {
+            reportCount: increment(1)
+         });
+
+         const card = document.querySelector(`.post-card[data-post-id="${postId}"]`);
+         if (card) {
+            card.style.display = 'none';
+            updateEmptyState();
+         }
+
+         overlay.classList.remove('open');
+         reason.value = '';
+         alert('Thank you — this post has been flagged for review.');
+      }
+      catch (error) {
+         console.error(error);
+         alert('Error submitting flag: ' + error.message);
+      }
+      finally {
+         submit_reason.disabled = false;
+         submit_reason.textContent = 'Submit';
+      }
+   });
+
+   sheet.appendChild(closeBtn);
+   sheet.appendChild(reason);
+   sheet.appendChild(submit_reason);
+   overlay.appendChild(sheet);
+
+   overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.remove('open');
+   });
+
+   document.body.appendChild(overlay);
+   return overlay;
+}
+
+function openFlagModal(postId) {
+   const overlay = ensureFlagModal();
+   overlay.dataset.postId = postId;
+   document.getElementById('flag-reason-input').value = '';
    overlay.classList.add('open');
 }
 
@@ -195,6 +289,7 @@ async function loadDocs() {
       const post = document.createElement('div');
       post.className = 'post-card';
       post.dataset.type = response['type'];
+      post.dataset.postId = response['id'];
 
       // "Scam Type: X" heading
       const type = document.createElement('div');
@@ -247,8 +342,14 @@ async function loadDocs() {
       downvoteBtn.innerHTML = `👎<span>${response['downvotes']}</span>`;
       downvoteBtn.dataset.postId = response['id'];
 
+      const flag = document.createElement('button');
+      flag.className = 'vote flag';
+      flag.textContent = 'Flag';
+      flag.dataset.postId = response['id'];
+
       votes.appendChild(upvoteBtn);
       votes.appendChild(downvoteBtn);
+      votes.appendChild(flag);
 
       details.appendChild(stats);
       details.appendChild(votes);
@@ -268,6 +369,7 @@ async function loadDocs() {
    });
 
    votingButtons();
+   flagger();
    setupFilters();
    ensureEmptyState();
    updateEmptyState();
