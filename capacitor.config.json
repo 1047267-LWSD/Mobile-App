@@ -1,6 +1,6 @@
 {
   "appId": "com.riya.scamproject",
-  "appName": "Watchtower",
+  "appName": "Beacon",
   "webDir": "static",
   "server": {
     "url": "https://spam-project-ylde.onrender.com/",
